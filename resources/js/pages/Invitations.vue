@@ -4,120 +4,19 @@
             <div>
                 <h1 class="page-title">Invitations</h1>
                 <p class="page-subtitle">
-                    Send invitation SMS with direct E-Card links to all guests.
+                    Send invitation messages with direct E-Card links to all guests.
                 </p>
             </div>
             <button
                 type="button"
                 class="btn btn-secondary text-sm"
                 :disabled="loading"
+                title="Reload invitations"
                 @click="load"
             >
                 <RefreshCw class="h-4 w-4" :class="{ 'animate-spin': loading }" />
                 Refresh
             </button>
-        </div>
-
-        <div class="card">
-            <div class="flex flex-col gap-3 border-b border-slate-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                    <h2 class="card-title">Send SMS Invitations</h2>
-                    <p class="mt-0.5 text-xs text-slate-400">
-                        Send SMS to all guests with a direct link to their E-Card.
-                    </p>
-                </div>
-                <div class="flex gap-2">
-                    <button
-                        type="button"
-                        class="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-60"
-                        :disabled="sendingSms || (preview?.guests ?? 0) === 0 || !report?.configured?.sms"
-                        @click="showSmsConfirm = true"
-                    >
-                        <span v-if="sendingSms" class="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white"></span>
-                        <template v-else>
-                            <Smartphone class="h-4 w-4" />
-                        </template>
-                        Send SMS to All Guests
-                    </button>
-                    <button
-                        type="button"
-                        class="inline-flex items-center gap-2 rounded-lg bg-amber-400 px-4 py-2.5 text-sm font-bold text-slate-900 shadow-sm transition hover:bg-amber-300 disabled:cursor-not-allowed disabled:opacity-60"
-                        :disabled="sending || (preview?.guests ?? 0) === 0"
-                        @click="showSendConfirm = true"
-                    >
-                        <span v-if="sending" class="h-4 w-4 animate-spin rounded-full border-2 border-emerald-900/30 border-t-emerald-900"></span>
-                        <template v-else>
-                            <Send class="h-4 w-4" />
-                        </template>
-                        Send All (SMS + WhatsApp)
-                    </button>
-                </div>
-            </div>
-
-            <div class="flex flex-col gap-3 border-b border-slate-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                    <h2 class="card-title">Schedule SMS</h2>
-                    <p class="mt-0.5 text-xs text-slate-400">
-                        Pick a future date and time. SMS invitations will be sent automatically at that time.
-                    </p>
-                </div>
-                <div class="flex flex-wrap items-center gap-2">
-                    <input
-                        v-model="scheduledDate"
-                        type="datetime-local"
-                        class="input"
-                        aria-label="Schedule date and time"
-                    />
-                    <button
-                        type="button"
-                        class="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-60"
-                        :disabled="schedulingSms || !scheduledDate || (preview?.guests ?? 0) === 0 || !report?.configured?.sms"
-                        @click="showScheduleConfirm = true"
-                    >
-                        <span v-if="schedulingSms" class="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white"></span>
-                        <template v-else>
-                            <Clock class="h-4 w-4" />
-                        </template>
-                        Schedule SMS
-                    </button>
-                </div>
-            </div>
-
-            <div class="flex flex-col gap-6 px-5 py-5 lg:flex-row lg:items-center lg:justify-between">
-                <p class="max-w-xl text-sm leading-relaxed text-slate-500">
-                    Every guest with a valid phone number will receive an SMS with their
-                    personal E-Card link. When they tap the link, the card opens directly
-                    showing all their invitation details.
-                </p>
-
-                <div class="flex flex-wrap gap-x-6 gap-y-2 text-sm font-semibold">
-                    <span class="inline-flex items-center gap-2">
-                        <Users class="h-4 w-4 text-emerald-500" />
-                        Guests: {{ preview?.guests ?? '...' }}
-                    </span>
-                    <span class="inline-flex items-center gap-2">
-                        <Smartphone class="h-4 w-4 text-emerald-500" />
-                        SMS Ready: {{ preview?.sms_messages ?? '...' }}
-                    </span>
-                    <span class="inline-flex items-center gap-2">
-                        <MessageSquare class="h-4 w-4 text-emerald-500" />
-                        WhatsApp: {{ preview?.whatsapp_messages ?? '...' }}
-                    </span>
-                </div>
-            </div>
-
-            <div class="border-t border-slate-100 px-5 py-4">
-                <p class="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-3">SMS Preview</p>
-                <div class="rounded-xl bg-slate-50 p-4 text-sm leading-relaxed text-slate-600 ring-1 ring-inset ring-slate-200">
-                    <p>Hello <strong>[Guest Name]</strong>.</p>
-                    <p>You're invited to <strong>[Event Name]</strong>!</p>
-                    <p>Date: [Date], Time: [Time], Venue: [Venue].</p>
-                    <p>Card: [Card Number]</p>
-                    <p class="mt-2 text-emerald-600 font-semibold">View your E-Card (tap to open):</p>
-                    <p class="text-emerald-600 underline">http://127.0.0.1:8000/e-card/[qr_token]</p>
-                    <p class="mt-2">Present this at the gate. Thank you!</p>
-                </div>
-            </div>
         </div>
 
         <div
@@ -131,6 +30,118 @@
                     Set <code>NEXTSMS_USERNAME</code> and <code>NEXTSMS_PASSWORD</code> in your <code>.env</code> file,
                     then run <code>php artisan config:clear</code>.
                 </p>
+            </div>
+        </div>
+
+        <div
+            v-if="report && !report.configured.whatsapp"
+            class="flex items-start gap-3 rounded-xl bg-sky-50 px-4 py-3 ring-1 ring-inset ring-sky-600/20"
+        >
+            <AlertTriangle class="mt-0.5 h-5 w-5 shrink-0 text-sky-600" />
+            <div class="text-sm text-sky-900">
+                <p class="font-semibold">WhatsApp is not configured.</p>
+                <p class="mt-0.5 text-sky-700">
+                    "Send All" will deliver SMS only. Configure WhatsApp in
+                    <router-link to="/whatsapp/settings" class="font-semibold underline">WhatsApp Settings</router-link>
+                    to enable both channels.
+                </p>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="border-b border-slate-100 px-5 py-4">
+                <h2 class="card-title">Send Invitations</h2>
+                <p class="mt-0.5 text-xs text-slate-400">
+                    Every guest with a valid phone number receives their personal E-Card link.
+                </p>
+            </div>
+
+            <div class="grid gap-6 px-5 py-5 lg:grid-cols-2">
+                <div class="flex flex-col gap-4">
+                    <p class="text-xs font-semibold uppercase tracking-wider text-slate-400">Send Now</p>
+                    <button
+                        type="button"
+                        class="btn btn-primary justify-start py-3!"
+                        :disabled="sendingSms"
+                        @click="onSendSmsClick"
+                    >
+                        <span v-if="sendingSms" class="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white"></span>
+                        <Smartphone v-else class="h-4 w-4" />
+                        <span class="flex flex-col items-start text-left">
+                            <span>Send SMS to All Guests</span>
+                            <span class="text-xs font-normal opacity-80">Direct E-Card link via NextSMS</span>
+                        </span>
+                    </button>
+                    <button
+                        type="button"
+                        class="inline-flex items-center gap-3 rounded-lg bg-amber-400 px-4 py-3 text-sm font-bold text-slate-900 shadow-sm transition hover:bg-amber-300 disabled:cursor-not-allowed disabled:opacity-60"
+                        :disabled="sending"
+                        @click="onSendAllClick"
+                    >
+                        <span v-if="sending" class="h-4 w-4 animate-spin rounded-full border-2 border-emerald-900/30 border-t-emerald-900"></span>
+                        <Send v-else class="h-4 w-4" />
+                        <span class="flex flex-col items-start text-left">
+                            <span>Send All (SMS + WhatsApp)</span>
+                            <span class="text-xs font-normal opacity-80">Both channels, {{ preview?.total_messages ?? '...' }} messages</span>
+                        </span>
+                    </button>
+
+                    <div class="mt-1 flex flex-wrap gap-2">
+                        <span class="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
+                            <Users class="h-3.5 w-3.5 text-emerald-500" />
+                            Guests: {{ preview?.guests ?? '…' }}
+                        </span>
+                        <span class="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
+                            <Smartphone class="h-3.5 w-3.5 text-indigo-500" />
+                            SMS Ready: {{ preview?.sms_messages ?? '…' }}
+                        </span>
+                        <span class="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
+                            <MessageSquare class="h-3.5 w-3.5 text-sky-500" />
+                            WhatsApp: {{ preview?.whatsapp_messages ?? '…' }}
+                        </span>
+                    </div>
+                </div>
+
+                <div class="flex flex-col gap-4 lg:border-l lg:border-slate-100 lg:pl-6">
+                    <p class="text-xs font-semibold uppercase tracking-wider text-slate-400">Schedule for Later</p>
+                    <p class="-mt-2 text-xs leading-relaxed text-slate-500">
+                        Pick a future date and time. SMS invitations will be sent automatically at that time.
+                    </p>
+                    <input
+                        v-model="scheduledDate"
+                        type="datetime-local"
+                        class="input"
+                        aria-label="Schedule date and time"
+                    />
+                    <button
+                        type="button"
+                        class="btn justify-start bg-indigo-600! py-3! text-white! hover:bg-indigo-500!"
+                        :disabled="schedulingSms || !scheduledDate"
+                        @click="onScheduleClick"
+                    >
+                        <span v-if="schedulingSms" class="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white"></span>
+                        <Clock v-else class="h-4 w-4" />
+                        <span class="flex flex-col items-start text-left">
+                            <span>Schedule SMS</span>
+                            <span class="text-xs font-normal opacity-80">
+                                {{ scheduledDate ? `Will send on ${scheduledDateLabel}` : 'Pick a date and time first' }}
+                            </span>
+                        </span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="border-t border-slate-100 px-5 py-4">
+                <p class="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-400">SMS Preview</p>
+                <div class="mx-auto max-w-sm rounded-2xl rounded-br-md bg-emerald-50 p-4 text-sm leading-relaxed text-slate-700 ring-1 ring-inset ring-emerald-600/10">
+                    <p>Hello <strong>[Guest Name]</strong>.</p>
+                    <p>You're invited to <strong>[Event Name]</strong>!</p>
+                    <p>Date: [Date], Time: [Time], Venue: [Venue].</p>
+                    <p>Card: [Card Number]</p>
+                    <p class="mt-2 font-semibold text-emerald-700">View your E-Card (tap to open):</p>
+                    <p class="break-all font-mono text-xs text-emerald-700 underline">{{ eCardLinkPreview }}</p>
+                    <p class="mt-2">Present this at the gate. Thank you!</p>
+                </div>
             </div>
         </div>
 
@@ -159,7 +170,7 @@
                     :value="report.total_failed"
                     hint="Messages that failed to send"
                     :icon="AlertTriangle"
-                    tone="danger"
+                    tone="rose"
                 />
             </div>
 
@@ -173,7 +184,8 @@
                         <button
                             type="button"
                             class="btn btn-secondary px-3! py-1.5! text-xs"
-                            :disabled="retrying"
+                            :disabled="retrying !== null"
+                            title="Re-queue failed SMS messages"
                             @click="doRetry('sms')"
                         >
                             <RotateCcw v-if="retrying !== 'sms'" class="h-3.5 w-3.5 text-emerald-600" />
@@ -183,7 +195,8 @@
                         <button
                             type="button"
                             class="btn btn-secondary px-3! py-1.5! text-xs"
-                            :disabled="retrying"
+                            :disabled="retrying !== null"
+                            title="Re-queue failed WhatsApp messages"
                             @click="doRetry('whatsapp')"
                         >
                             <RotateCcw v-if="retrying !== 'whatsapp'" class="h-3.5 w-3.5 text-emerald-600" />
@@ -193,7 +206,8 @@
                         <button
                             type="button"
                             class="btn btn-secondary px-3! py-1.5! text-xs"
-                            :disabled="retrying"
+                            :disabled="retrying !== null"
+                            title="Re-queue all failed messages"
                             @click="doRetry()"
                         >
                             <RotateCcw v-if="retrying !== 'all'" class="h-3.5 w-3.5 text-emerald-600" />
@@ -289,7 +303,7 @@
                     <div>
                         <p class="font-semibold text-slate-700">No messages sent yet</p>
                         <p class="mt-0.5 text-sm text-slate-400">
-                            Click "Send SMS to All Guests" to start.
+                            Click "Send SMS to All Guests" above to start.
                         </p>
                     </div>
                 </div>
@@ -323,7 +337,7 @@
         <ConfirmDialog
             :open="showScheduleConfirm"
             title="Schedule SMS Invitations?"
-            :message="`This will queue SMS invitations for ${preview?.guests ?? 0} guests. They will be sent automatically on ${scheduledDateLabel || scheduledDate}.`"
+            :message="`This will queue SMS invitations for ${preview?.guests ?? 0} guests. They will be sent automatically on ${scheduledDateLabel}.`"
             confirm-label="Schedule SMS"
             :loading="schedulingSms"
             @confirm="doScheduleSms"
@@ -373,23 +387,25 @@ const channelFilter = ref('');
 const statusFilter = ref('');
 let searchTimer = null;
 
+const eCardLinkPreview = `${window.location.origin}/e-card/[qr_token]`;
+
 const whatsAppHint = computed(() => {
     if (!report.value) return '';
-    const { sent, delivered, failed, pending } = report.value.whatsapp;
+    const { sent, failed, pending } = report.value.whatsapp;
     return `Sent: ${sent} · Failed: ${failed} · Pending: ${pending}`;
 });
 
 const smsHint = computed(() => {
     if (!report.value) return '';
-    const { sent, delivered, failed, pending } = report.value.sms;
+    const { sent, failed, pending } = report.value.sms;
     return `Sent: ${sent} · Failed: ${failed} · Pending: ${pending}`;
 });
 
 const scheduledDateLabel = computed(() => {
     if (!scheduledDate.value) return '';
-    return new Date(scheduledDate.value).toLocaleString('sw-TZ', {
+    return new Date(scheduledDate.value).toLocaleString('en-GB', {
         day: '2-digit',
-        month: '2-digit',
+        month: 'short',
         year: 'numeric',
         hour: '2-digit',
         minute: '2-digit',
@@ -420,9 +436,9 @@ function statusBadge(status) {
 
 function formatTime(value) {
     if (!value) return '—';
-    return new Date(value).toLocaleString('sw-TZ', {
+    return new Date(value).toLocaleString('en-GB', {
         day: '2-digit',
-        month: '2-digit',
+        month: 'short',
         year: 'numeric',
         hour: '2-digit',
         minute: '2-digit',
@@ -443,6 +459,46 @@ async function load() {
     } finally {
         loading.value = false;
     }
+}
+
+function onSendSmsClick() {
+    if ((preview.value?.guests ?? 0) === 0) {
+        toast.warning('No guests are ready. Add guests with valid phone numbers and cards first.');
+        return;
+    }
+    if (!report.value?.configured?.sms) {
+        toast.warning('SMS is not configured. Set NEXTSMS_USERNAME and NEXTSMS_PASSWORD in .env first.');
+        return;
+    }
+    showSmsConfirm.value = true;
+}
+
+function onSendAllClick() {
+    if ((preview.value?.guests ?? 0) === 0) {
+        toast.warning('No guests are ready. Add guests with valid phone numbers and cards first.');
+        return;
+    }
+    showSendConfirm.value = true;
+}
+
+function onScheduleClick() {
+    if (!scheduledDate.value) {
+        toast.warning('Pick a future date and time first.');
+        return;
+    }
+    if (new Date(scheduledDate.value) <= new Date()) {
+        toast.warning('The schedule time must be in the future.');
+        return;
+    }
+    if ((preview.value?.guests ?? 0) === 0) {
+        toast.warning('No guests are ready. Add guests with valid phone numbers and cards first.');
+        return;
+    }
+    if (!report.value?.configured?.sms) {
+        toast.warning('SMS is not configured. Set NEXTSMS_USERNAME and NEXTSMS_PASSWORD in .env first.');
+        return;
+    }
+    showScheduleConfirm.value = true;
 }
 
 async function doSendSmsOnly() {
@@ -481,7 +537,7 @@ async function doSendAll() {
         showSendConfirm.value = false;
         await Promise.all([load(), reloadSends()]);
     } catch (error) {
-        toast.error(error.response?.data?.message || 'Failed to schedule invitations.');
+        toast.error(error.response?.data?.message || 'Failed to send invitations.');
     } finally {
         sending.value = false;
     }
