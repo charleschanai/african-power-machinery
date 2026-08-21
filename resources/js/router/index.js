@@ -6,25 +6,25 @@ const routes = [
         path: '/login',
         name: 'login',
         component: () => import('../pages/Login.vue'),
-        meta: { guest: true },
+        meta: { guest: true, title: 'Sign In' },
     },
     {
         path: '/forgot-password',
         name: 'forgot-password',
         component: () => import('../pages/ForgotPassword.vue'),
-        meta: { guest: true },
+        meta: { guest: true, title: 'Forgot Password' },
     },
     {
         path: '/reset-password',
         name: 'reset-password',
         component: () => import('../pages/ResetPassword.vue'),
-        meta: { guest: true },
+        meta: { guest: true, title: 'Reset Password' },
     },
     {
         path: '/e-card/:token',
         name: 'e-card',
         component: () => import('../pages/ECard.vue'),
-        meta: { public: true },
+        meta: { public: true, title: 'E-Card' },
     },
     {
         path: '/',
@@ -35,6 +35,7 @@ const routes = [
                 path: '',
                 name: 'entry',
                 component: () => import('../pages/Entry.vue'),
+                meta: { title: 'Entry Check' },
             },
         ],
     },
@@ -43,19 +44,19 @@ const routes = [
         component: () => import('../layouts/AdminLayout.vue'),
         meta: { requiresAuth: true, roles: ['admin'], requires2fa: true },
         children: [
-            { path: '/dashboard', name: 'dashboard', component: () => import('../pages/Dashboard.vue') },
-            { path: '/guests', name: 'guests', component: () => import('../pages/Guests.vue') },
-            { path: '/guests/:id', name: 'guest-show', component: () => import('../pages/GuestShow.vue') },
-            { path: '/cards', name: 'cards', component: () => import('../pages/Cards.vue') },
-            { path: '/cards/:id', name: 'card-show', component: () => import('../pages/CardShow.vue') },
-            { path: '/invitations', name: 'invitations', component: () => import('../pages/Invitations.vue') },
-            { path: '/weekly-reminders', name: 'weekly-reminders', component: () => import('../pages/WeeklyReminders.vue') },
-            { path: '/card-templates', name: 'card-templates', component: () => import('../pages/CardTemplates.vue') },
-            { path: '/entry-logs', name: 'entry-logs', component: () => import('../pages/EntryLogs.vue') },
-            { path: '/whatsapp/settings', name: 'whatsapp-settings', component: () => import('../pages/WhatsAppSettings.vue') },
-            { path: '/whatsapp/faqs', name: 'whatsapp-faqs', component: () => import('../pages/WhatsAppFaqs.vue') },
-            { path: '/whatsapp/conversations', name: 'whatsapp-conversations', component: () => import('../pages/WhatsAppConversations.vue') },
-            { path: '/security', name: 'security', component: () => import('../pages/SecuritySettings.vue'), meta: { requires2fa: false } },
+            { path: '/dashboard', name: 'dashboard', component: () => import('../pages/Dashboard.vue'), meta: { title: 'Dashboard' } },
+            { path: '/guests', name: 'guests', component: () => import('../pages/Guests.vue'), meta: { title: 'Guests' } },
+            { path: '/guests/:id', name: 'guest-show', component: () => import('../pages/GuestShow.vue'), meta: { title: 'Guest Details' } },
+            { path: '/cards', name: 'cards', component: () => import('../pages/Cards.vue'), meta: { title: 'Cards' } },
+            { path: '/cards/:id', name: 'card-show', component: () => import('../pages/CardShow.vue'), meta: { title: 'Card Details' } },
+            { path: '/invitations', name: 'invitations', component: () => import('../pages/Invitations.vue'), meta: { title: 'Invitations and Reports' } },
+            { path: '/weekly-reminders', name: 'weekly-reminders', component: () => import('../pages/WeeklyReminders.vue'), meta: { title: 'Weekly Reminders' } },
+            { path: '/card-templates', name: 'card-templates', component: () => import('../pages/CardTemplates.vue'), meta: { title: 'Card Templates' } },
+            { path: '/entry-logs', name: 'entry-logs', component: () => import('../pages/EntryLogs.vue'), meta: { title: 'Entry Logs' } },
+            { path: '/whatsapp/settings', name: 'whatsapp-settings', component: () => import('../pages/WhatsAppSettings.vue'), meta: { title: 'WhatsApp Settings' } },
+            { path: '/whatsapp/faqs', name: 'whatsapp-faqs', component: () => import('../pages/WhatsAppFaqs.vue'), meta: { title: 'FAQs' } },
+            { path: '/whatsapp/conversations', name: 'whatsapp-conversations', component: () => import('../pages/WhatsAppConversations.vue'), meta: { title: 'WhatsApp Conversations' } },
+            { path: '/security', name: 'security', component: () => import('../pages/SecuritySettings.vue'), meta: { requires2fa: false, title: 'Security' } },
         ],
     },
     {
@@ -120,6 +121,11 @@ router.beforeEach((to) => {
     }
 
     return true;
+});
+
+router.afterEach((to) => {
+    const appName = 'E-Card System';
+    document.title = to.meta?.title ? `${to.meta.title} · ${appName}` : appName;
 });
 
 export default router;
