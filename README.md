@@ -11,7 +11,7 @@ Mfumo wa kisasa wa **E-Card na Udhibiti wa Wageni wa Kuingia Ukumbini** unaojeng
 - **QR Code Scanner** — kupitia camera ya browser (@zxing/library)
 - **WhatsApp Business / WhatsApp Cloud API** — kutuma E-Kadi kwa wageni
 
-> **Mfumo wote unaoonekana kwa mtumiaji ni kwa KISWAHILI PEKEE.**
+> **Mfumo wote unaoonekana kwa mtumiaji kwa lugha ya kingereza pekee.**
 > Backend + MySQL ndiyo **source of truth** — frontend haifanyi maamuzi yoyote ya uthibitisho.
 
 ---
