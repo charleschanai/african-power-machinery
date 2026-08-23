@@ -67,4 +67,8 @@ return [
         'temperature' => (float) env('AI_TEMPERATURE', 0.3),
     ],
 
+    'cron' => [
+        'secret' => env('CRON_SECRET'),
+    ],
+
 ];

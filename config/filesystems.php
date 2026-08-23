@@ -40,7 +40,9 @@ return [
 
         'public' => [
             'driver' => 'local',
-            'root' => storage_path('app/public'),
+            // On hosts without symlink support (shared hosting) point this to a
+            // directory inside the web-served public folder, e.g. PUBLIC_DISK_ROOT=/home/user/htdocs/uploads
+            'root' => env('PUBLIC_DISK_ROOT', storage_path('app/public')),
             // Host-relative so uploaded files work on any domain (localhost,
             // LAN IP, or production) without depending on APP_URL.
             'url' => env('ASSET_URL', '/storage'),
