@@ -49,6 +49,17 @@ class AuthController extends Controller
 
         RateLimiter::clear($limiterKey);
 
+        // Checked after the password, not before. Testing it first would turn
+        // the login form into an oracle that reports which emails belong to
+        // deactivated accounts.
+        if (! $user->isActive()) {
+            SecurityLogger::logRequest('login.deactivated', $request, $user);
+
+            throw ValidationException::withMessages([
+                'email' => ['This account has been deactivated. Ask an administrator to reactivate it.'],
+            ]);
+        }
+
         if ($user->twoFactorEnabled()) {
             $twoFactorToken = Str::random(64);
 
@@ -99,6 +110,7 @@ class AuthController extends Controller
                     'name' => $user->name,
                     'email' => $user->email,
                     'role' => $user->role,
+                    'is_active' => $user->isActive(),
                     'two_factor_enabled' => $user->twoFactorEnabled(),
                 ],
             ],

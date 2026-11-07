@@ -331,18 +331,49 @@ function closeModal() {
     showModal.value = false;
 }
 
-function onFrontSelected(event) {
-    const file = event.target.files?.[0];
+/**
+ * Largest design the server accepts, in bytes. Kept in step with
+ * StoreCardTemplateRequest::MAX_DESIGN_KB, which is 5120 KB.
+ */
+const MAX_DESIGN_BYTES = 5 * 1024 * 1024;
+
+function humanSize(bytes) {
+    if (bytes >= 1048576) return (bytes / 1048576).toFixed(2) + 'MB';
+    return Math.max(1, Math.round(bytes / 1024)) + 'KB';
+}
+
+/**
+ * Rejects an oversized design at the moment it is chosen, and says how far over
+ * it is. Waiting for the server to answer only tells the admin "must not exceed
+ * 5MB", which gives no idea whether the file is a kilobyte over or twenty
+ * megabytes over.
+ */
+function acceptDesign(event, field, previewRef) {
+    const input = event.target;
+    const file = input.files?.[0];
     if (!file) return;
-    form.value.front_design = file;
-    frontPreview.value = file.name;
+
+    if (file.size > MAX_DESIGN_BYTES) {
+        toast.error(
+            `${file.name} is ${humanSize(file.size)}, over the 5MB limit. ` +
+            'Save it smaller: on a phone pick Medium or Low quality, or on a computer export it as JPG.'
+        );
+        input.value = '';
+        form.value[field] = null;
+        previewRef.value = '';
+        return;
+    }
+
+    form.value[field] = file;
+    previewRef.value = `${file.name} (${humanSize(file.size)})`;
+}
+
+function onFrontSelected(event) {
+    acceptDesign(event, 'front_design', frontPreview);
 }
 
 function onBackSelected(event) {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    form.value.back_design = file;
-    backPreview.value = file.name;
+    acceptDesign(event, 'back_design', backPreview);
 }
 
 async function submit() {

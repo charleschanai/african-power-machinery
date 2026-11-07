@@ -35,7 +35,7 @@ class EmailService
             ];
         }
 
-        $cardUrl = url('/e-card/' . $card->qr_token);
+        $cardUrl = $card->publicUrl();
 
         try {
             Mail::to($email)->send(new InvitationMail($card, $cardUrl));

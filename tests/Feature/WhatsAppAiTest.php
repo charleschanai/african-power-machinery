@@ -33,6 +33,12 @@ class WhatsAppAiTest extends TestCase
             'services.whatsapp.token' => 'test-token',
             'services.whatsapp.phone_number_id' => '123456789',
             'services.whatsapp.business_account_id' => '987654321',
+            // The webhook fails closed: an unset app secret is rejected with
+            // 503 rather than accepted unverified. These tests were relying
+            // on the old behaviour, where an empty secret silently disabled
+            // signature checking and turned the endpoint into an open write
+            // path into real guests' conversations.
+            'services.whatsapp.app_secret' => self::APP_SECRET,
         ]);
 
         Http::fake([
@@ -41,6 +47,20 @@ class WhatsAppAiTest extends TestCase
                 'contacts' => [['wa_id' => '255712345678']],
                 'messages' => [['id' => 'wamid.outgoing.123']],
             ], 200),
+        ]);
+    }
+
+    private const APP_SECRET = 'app-secret';
+
+    /**
+     * Post a webhook payload the way Meta does: signed with the app secret.
+     */
+    private function postWebhook(array $payload, ?string $secret = null)
+    {
+        $secret ??= self::APP_SECRET;
+
+        return $this->postJson('/whatsapp/webhook', $payload, [
+            'X-Hub-Signature-256' => 'sha256='.hash_hmac('sha256', json_encode($payload), $secret),
         ]);
     }
 
@@ -110,7 +130,7 @@ class WhatsAppAiTest extends TestCase
         $this->enableApi();
         Guest::factory()->create(['full_name' => 'John Michael', 'phone' => '255712345678']);
 
-        $this->postJson('/whatsapp/webhook', $this->payload('Habari'))
+        $this->postWebhook($this->payload('Habari'))
             ->assertOk()
             ->assertJsonPath('status', 'received');
 
@@ -143,7 +163,7 @@ class WhatsAppAiTest extends TestCase
         $guest = Guest::factory()->create(['full_name' => 'John Michael', 'phone' => '255712345678']);
         $card = Card::factory()->single()->create(['guest_id' => $guest->id]);
 
-        $this->postJson('/whatsapp/webhook', $this->payload('Naomba card yangu', waId: 'wamid.incoming.card'))
+        $this->postWebhook($this->payload('Naomba card yangu', waId: 'wamid.incoming.card'))
             ->assertOk();
 
         $reply = WhatsAppMessage::query()
@@ -162,7 +182,7 @@ class WhatsAppAiTest extends TestCase
         $this->enableApi();
         Guest::factory()->create(['full_name' => 'Secret Person', 'phone' => '255700000000']);
 
-        $this->postJson('/whatsapp/webhook', $this->payload('Naomba card yangu', from: '255799999999'))
+        $this->postWebhook($this->payload('Naomba card yangu', from: '255799999999'))
             ->assertOk();
 
         $reply = WhatsAppMessage::query()
@@ -181,7 +201,7 @@ class WhatsAppAiTest extends TestCase
         $this->enableApi();
         WhatsAppSetting::singleton()->update(['ai_enabled' => false]);
 
-        $this->postJson('/whatsapp/webhook', $this->payload('Habari'))
+        $this->postWebhook($this->payload('Habari'))
             ->assertOk();
 
         $reply = WhatsAppMessage::query()
@@ -202,7 +222,7 @@ class WhatsAppAiTest extends TestCase
             'status' => 'manual',
         ]);
 
-        $this->postJson('/whatsapp/webhook', $this->payload('Habari', from: '255755555555'))
+        $this->postWebhook($this->payload('Habari', from: '255755555555'))
             ->assertOk();
 
         $this->assertSame(0, WhatsAppMessage::query()
@@ -215,7 +235,7 @@ class WhatsAppAiTest extends TestCase
     {
         $this->enableApi();
 
-        $this->postJson('/whatsapp/webhook', $this->payload('Habari'))
+        $this->postWebhook($this->payload('Habari'))
             ->assertOk();
 
         Http::assertSent(fn ($request) => ($request->data()['type'] ?? null) === 'interactive');
@@ -227,7 +247,7 @@ class WhatsAppAiTest extends TestCase
         $guest = Guest::factory()->create(['full_name' => 'John Michael', 'phone' => '255712345678']);
         $card = Card::factory()->single()->create(['guest_id' => $guest->id]);
 
-        $this->postJson('/whatsapp/webhook', $this->payload('E-Card yangu'))
+        $this->postWebhook($this->payload('E-Card yangu'))
             ->assertOk();
 
         $reply = WhatsAppMessage::query()
@@ -357,7 +377,7 @@ class WhatsAppAiTest extends TestCase
             'status' => 'active',
         ]);
 
-        $this->postJson('/whatsapp/webhook', $this->payload('Sherehe itafanyika wapi?'))
+        $this->postWebhook($this->payload('Sherehe itafanyika wapi?'))
             ->assertOk();
 
         $reply = WhatsAppMessage::query()
@@ -374,7 +394,7 @@ class WhatsAppAiTest extends TestCase
     {
         $this->enableApi();
 
-        $this->postJson('/whatsapp/webhook', $this->payload('Dress code ni ipi?'))
+        $this->postWebhook($this->payload('Dress code ni ipi?'))
             ->assertOk();
 
         $reply = WhatsAppMessage::query()

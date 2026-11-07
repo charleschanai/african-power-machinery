@@ -31,6 +31,21 @@
         <env name="MAIL_MAILER" value="array"/>
         <env name="QUEUE_CONNECTION" value="sync"/>
         <env name="SESSION_DRIVER" value="array"/>
+
+        <!--
+            Metrics are off in tests.
+
+            The request monitor writes a system_metrics row for every slow or
+            4xx/5xx response, inside the same transaction the test is asserting
+            on. That extra write both pollutes the table the monitoring tests
+            assert against and changes transaction behaviour underneath the
+            feature tests, which showed up as order-dependent foreign-key
+            failures. Aggregate counters still work (they use the array cache);
+            only the persistence is disabled.
+        -->
+        <env name="MONITORING_PERSIST" value="false"/>
+        <env name="MONITORING_ALERTS" value="false"/>
+
         <env name="PULSE_ENABLED" value="false"/>
         <env name="TELESCOPE_ENABLED" value="false"/>
         <env name="NIGHTWATCH_ENABLED" value="false"/>

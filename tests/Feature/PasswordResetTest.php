@@ -21,14 +21,35 @@ class PasswordResetTest extends TestCase
         $this->postJson('/api/v1/password/forgot', ['email' => $user->email])
             ->assertOk()
             ->assertJsonPath('success', true)
-            ->assertJsonPath('message', 'The password reset link has been sent to your email.');
+            // One message for every outcome. A different string for "mail
+            // sent" versus "unknown address" turns this endpoint into a way
+            // to find out who is an admin.
+            ->assertJsonPath('message', 'If this email exists in the system, a password reset link has been sent.');
     }
 
     public function test_forgot_does_not_reveal_unknown_email(): void
     {
+        Mail::fake();
+
         $this->postJson('/api/v1/password/forgot', ['email' => 'hakuna@example.com'])
             ->assertOk()
-            ->assertJsonPath('success', true);
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('message', 'If this email exists in the system, a password reset link has been sent.');
+    }
+
+    public function test_forgot_never_returns_a_data_payload(): void
+    {
+        Mail::fake();
+        $user = User::factory()->admin()->create();
+
+        // The endpoint used to return data.reset_url whenever the mail send
+        // threw, handing an unauthenticated caller a working password reset
+        // token. A broken SMTP block in .env is the easiest way to trigger
+        // exactly that.
+        $response = $this->postJson('/api/v1/password/forgot', ['email' => $user->email]);
+
+        $this->assertArrayNotHasKey('data', $response->json());
+        $this->assertStringNotContainsString('token', $response->getContent());
     }
 
     public function test_reset_changes_password_and_allows_login(): void

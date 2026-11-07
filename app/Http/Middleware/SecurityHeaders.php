@@ -21,7 +21,7 @@ class SecurityHeaders
         $response->headers->set('X-Content-Type-Options', 'nosniff');
         $response->headers->set('X-XSS-Protection', '1; mode=block');
         $response->headers->set('Referrer-Policy', 'strict-origin-when-cross-origin');
-        $response->headers->set('Permissions-Policy', 'geolocation=(), microphone=(), camera=(), payment=(), usb=()');
+        $response->headers->set('Permissions-Policy', $this->permissionsPolicy());
         $response->headers->set('Content-Security-Policy', $this->contentSecurityPolicy());
 
         if ($request->isSecure() && app()->environment('production')) {
@@ -31,6 +31,25 @@ class SecurityHeaders
         $response->headers->remove('X-Powered-By');
 
         return $response;
+    }
+
+    /**
+     * The QR scanner is the primary way a guest gets through the gate, so the
+     * camera has to be permitted. It is granted to 'self' only, which means
+     * no third-party origin can open a camera through this app.
+     *
+     * Everything this application has no use for stays switched off.
+     */
+    private function permissionsPolicy(): string
+    {
+        return implode(', ', [
+            'camera=(self)',
+            'geolocation=()',
+            'microphone=()',
+            'payment=()',
+            'usb=()',
+            'interest-cohort=()',
+        ]);
     }
 
     private function contentSecurityPolicy(): string

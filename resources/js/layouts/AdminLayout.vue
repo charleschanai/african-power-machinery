@@ -178,7 +178,6 @@
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import {
-    Bell,
     Clock,
     CreditCard,
     LayoutDashboard,
@@ -194,6 +193,8 @@ import {
     Send,
     ShieldCheck,
     ShieldAlert,
+    HandCoins,
+    UsersRound,
 } from '@lucide/vue';
 import { useAuthStore } from '../stores/auth';
 import { useToastStore } from '../stores/toast';
@@ -211,9 +212,12 @@ const menu = [
     { to: '/guests', label: 'Guests', icon: Users },
     { to: '/cards', label: 'Cards', icon: CreditCard },
     { to: '/invitations', label: 'Invitations', icon: Send },
-    { to: '/weekly-reminders', label: 'Weekly Reminders', icon: Bell },
+    { to: '/card-management/double', label: 'Double Card Management', icon: CreditCard },
+    { to: '/card-management/single', label: 'Single Card Management', icon: CreditCard },
+    { to: '/michango', label: 'Contributions', icon: HandCoins },
     { to: '/card-templates', label: 'Card Templates', icon: LayoutTemplate },
     { to: '/entry-logs', label: 'Entry Logs', icon: ClipboardList },
+    { to: '/users', label: 'Users', icon: UsersRound },
     { to: '/security', label: 'Security', icon: ShieldCheck },
 ];
 
@@ -229,10 +233,13 @@ const titles = {
     'guest-show': 'Guest Details',
     cards: 'Cards',
     'card-show': 'Card Details',
-    invitations: 'Invitations and Reports',
+    invitations: 'Invitations',
     'weekly-reminders': 'Weekly Reminders',
+    michango: 'Contribution Reminders',
     'card-templates': 'Card Templates',
     'entry-logs': 'Entry Logs',
+    users: 'Users',
+    monitoring: 'System Monitoring',
     'whatsapp-settings': 'WhatsApp Settings',
     'whatsapp-faqs': 'FAQs',
     'whatsapp-conversations': 'WhatsApp Conversations',

@@ -36,9 +36,10 @@
             </div>
 
             <div v-else-if="guests.length" class="overflow-x-auto">
-                <table class="data-table w-full min-w-[720px] text-left">
+                <table class="data-table w-full min-w-[780px] text-left">
                     <thead>
                         <tr class="border-b border-slate-200">
+                            <th class="table-header w-16 text-center">Number</th>
                             <th class="table-header">Guest</th>
                             <th class="table-header">Phone Number</th>
                             <th class="table-header">Email</th>
@@ -47,7 +48,8 @@
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100">
-                        <tr v-for="guest in guests" :key="guest.id">
+                        <tr v-for="(guest, index) in guests" :key="guest.id">
+                            <td class="table-cell text-center"><span class="inline-flex h-7 min-w-7 items-center justify-center rounded-lg bg-slate-100 px-2 text-xs font-bold tabular-nums text-slate-600">{{ guestRowNumber(index) }}</span></td>
                             <td class="table-cell">
                                 <div class="flex items-center gap-3">
                                     <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-sm font-bold text-emerald-700 ring-1 ring-inset ring-emerald-600/10">
@@ -231,6 +233,10 @@ const form = reactive({ full_name: '', phone: '', email: '', notes: '' });
 const deleteTarget = ref(null);
 const exporting = ref(false);
 let searchTimer = null;
+
+function guestRowNumber(index) {
+    return ((pagination.value?.current_page ?? 1) - 1) * 15 + index + 1;
+}
 
 async function doExport() {
     exporting.value = true;

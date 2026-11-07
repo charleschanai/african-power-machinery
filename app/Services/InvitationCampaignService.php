@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Enums\CardStatus;
 use App\Enums\InvitationChannel;
+use App\Enums\InvitationSendKind;
 use App\Enums\InvitationStatus;
 use App\Jobs\SendSmsInvitationJob;
 use App\Jobs\SendWhatsAppInvitationJob;
@@ -14,6 +15,16 @@ use Illuminate\Database\Eloquent\Builder;
 
 class InvitationCampaignService
 {
+    /**
+     * This campaign owns only the original invitation rows in invitation_sends.
+     *
+     * The table now also stores reminders (kind = 'reminder'), and the unique
+     * key is (card_id, channel, kind). Every lookup below is therefore pinned to
+     * the invitation kind so this campaign can never read, overwrite or re-send
+     * a reminder that the Invitations page created for the same card.
+     */
+    private const KIND = InvitationSendKind::Invitation->value;
+
     public function __construct(
         private readonly WhatsAppService $whatsApp,
         private readonly SmsService $sms,
@@ -59,6 +70,7 @@ class InvitationCampaignService
                 $send = InvitationSend::query()
                     ->where('card_id', $card->id)
                     ->where('channel', $channel->value)
+                    ->where('kind', self::KIND)
                     ->first();
 
                 if ($send !== null && in_array($send->status->value, [
@@ -73,7 +85,7 @@ class InvitationCampaignService
                 }
 
                 InvitationSend::query()->updateOrCreate(
-                    ['card_id' => $card->id, 'channel' => $channel->value],
+                    ['card_id' => $card->id, 'channel' => $channel->value, 'kind' => self::KIND],
                     [
                         'status' => InvitationStatus::Queued->value,
                         'phone_e164' => $phone,
@@ -176,7 +188,7 @@ class InvitationCampaignService
         if (($result['success'] ?? false) === true) {
             $send->forceFill([
                 'status' => InvitationStatus::Sent->value,
-                'provider_message_id' => null,
+                'provider_message_id' => $result['message_id'] ?? null,
                 'error' => null,
                 'sent_at' => now(),
             ])->save();
@@ -187,6 +199,45 @@ class InvitationCampaignService
                 'error' => $result['message'] ?? 'Failed to send SMS.',
             ])->save();
         }
+    }
+
+    /**
+     * Polls the SMS provider for delivery reports of sent messages and
+     * updates each record to Delivered or Failed accordingly.
+     */
+    public function syncSmsDeliveryStatus(): array
+    {
+        $sends = InvitationSend::query()
+            ->where('channel', InvitationChannel::Sms->value)
+            ->where('status', InvitationStatus::Sent->value)
+            ->whereNotNull('provider_message_id')
+            ->orderBy('sent_at')
+            ->limit(100)
+            ->get();
+
+        $delivered = 0;
+        $failed = 0;
+
+        foreach ($sends as $send) {
+            $report = $this->sms->deliveryStatus($send->provider_message_id);
+
+            if ($report['status'] === 'delivered') {
+                $send->forceFill([
+                    'status' => InvitationStatus::Delivered->value,
+                    'delivered_at' => now(),
+                    'error' => null,
+                ])->save();
+                $delivered++;
+            } elseif ($report['status'] === 'failed') {
+                $send->forceFill([
+                    'status' => InvitationStatus::Failed->value,
+                    'error' => $report['description'] ?? 'The SMS was not delivered to the recipient.',
+                ])->save();
+                $failed++;
+            }
+        }
+
+        return ['checked' => $sends->count(), 'delivered' => $delivered, 'failed' => $failed];
     }
 
     public function report(): array
@@ -231,6 +282,7 @@ class InvitationCampaignService
     {
         $query = InvitationSend::query()
             ->where('status', InvitationStatus::Failed->value)
+            ->where('kind', self::KIND)
             ->with('card.guest');
 
         if ($channel !== null && in_array($channel, [
@@ -283,39 +335,42 @@ class InvitationCampaignService
 
     public function whatsappMessage(Card $card, string $cardUrl): string
     {
-        $name = $card->guest?->full_name ?? 'guest';
+        $fullName = trim($card->guest?->full_name ?? 'guest');
+        $firstName = explode(' ', $fullName)[0];
         $event = $this->eventName($card);
         $officialNumber = $this->eventDetail()->contact_number;
 
         $lines = [
-            "Hello {$name} 😊",
+            "Dear {$firstName},",
             '',
-            "Your invitation to {$event} is ready.",
+            "It is our pleasure to invite you to *{$event}*.",
             '',
-            '🎫 Your E-Card:',
+            '🎫 *Your E-Card:*',
             $cardUrl,
             '',
         ];
 
         if ($date = $this->eventDate($card)) {
-            $lines[] = "📅 Date: {$date}";
+            $lines[] = "📅 *Date:* {$date}";
         }
 
         if ($time = $this->eventTime($card)) {
-            $lines[] = "⏰ Time: {$time}";
+            $lines[] = "⏰ *Time:* {$time}";
         }
 
         if ($venue = $this->eventVenue($card)) {
-            $lines[] = "📍 Venue: {$venue}";
+            $lines[] = "📍 *Venue:* {$venue}";
         }
 
         $lines[] = '';
-        $lines[] = "🎟 Card Number: {$card->card_number}";
+        $lines[] = "🎟 *Card Number:* {$card->card_number}";
+        $lines[] = '';
+        $lines[] = 'Kindly present your E-Card at the entrance.';
+        $lines[] = 'We look forward to celebrating with you!';
 
         if ($officialNumber) {
             $lines[] = '';
-            $lines[] = 'For more details, message us on WhatsApp:';
-            $lines[] = $officialNumber;
+            $lines[] = "For any inquiries, reach us on WhatsApp: {$officialNumber}";
         }
 
         return implode(PHP_EOL, $lines);
@@ -323,40 +378,36 @@ class InvitationCampaignService
 
     public function smsMessage(Card $card, string $cardUrl): string
     {
-        $name = $card->guest?->full_name ?? 'guest';
+        $fullName = trim($card->guest?->full_name ?? 'Guest');
+        $firstName = explode(' ', $fullName)[0];
         $event = $this->eventName($card);
+        $signer = $this->eventDetail()->contact_person ?: $event;
 
-        $parts = [
-            "Hello {$name}.",
-            "You're invited to {$event}!",
+        $lines = [
+            "Dear {$firstName},",
+            '',
+            "You are cordially invited to {$event}.",
         ];
 
-        $details = [];
-
-        if ($date = $this->eventDate($card)) {
-            $details[] = "Date: {$date}";
-        }
-
-        if ($time = $this->eventTime($card)) {
-            $details[] = "Time: {$time}";
-        }
-
-        if ($venue = $this->eventVenue($card)) {
-            $details[] = "Venue: {$venue}";
-        }
+        $details = array_values(array_filter(array_map('trim', [
+            $this->eventDate($card),
+            $this->eventTime($card) ? 'at ' . $this->eventTime($card) : null,
+            $this->eventVenue($card),
+        ])));
 
         if ($details !== []) {
-            $parts[] = implode(', ', $details) . '.';
+            $lines[] = implode(' | ', $details);
         }
 
-        $parts[] = "Card: {$card->card_number}";
-        $parts[] = '';
-        $parts[] = "View your E-Card (tap to open):";
-        $parts[] = $cardUrl;
-        $parts[] = '';
-        $parts[] = 'Present this at the gate. Thank you!';
+        $lines[] = '';
+        $lines[] = "Your E-Card: {$cardUrl}";
+        $lines[] = "Card No: {$card->card_number}";
+        $lines[] = '';
+        $lines[] = 'Kindly present your E-Card at the entrance.';
+        $lines[] = 'We look forward to celebrating with you!';
+        $lines[] = "- {$signer}";
 
-        return implode(' ', $parts);
+        return implode("\n", $lines);
     }
 
     public function dispatchSmsOnly(): array
@@ -379,6 +430,7 @@ class InvitationCampaignService
             $send = InvitationSend::query()
                 ->where('card_id', $card->id)
                 ->where('channel', $channel->value)
+                ->where('kind', self::KIND)
                 ->first();
 
             if ($send !== null && in_array($send->status->value, [
@@ -393,7 +445,7 @@ class InvitationCampaignService
             }
 
             InvitationSend::query()->updateOrCreate(
-                ['card_id' => $card->id, 'channel' => $channel->value],
+                ['card_id' => $card->id, 'channel' => $channel->value, 'kind' => self::KIND],
                 [
                     'status' => InvitationStatus::Queued->value,
                     'phone_e164' => $phone,
@@ -437,6 +489,7 @@ class InvitationCampaignService
             $send = InvitationSend::query()
                 ->where('card_id', $card->id)
                 ->where('channel', $channel->value)
+                ->where('kind', self::KIND)
                 ->first();
 
             if ($send !== null && in_array($send->status->value, [
@@ -447,7 +500,7 @@ class InvitationCampaignService
             }
 
             InvitationSend::query()->updateOrCreate(
-                ['card_id' => $card->id, 'channel' => $channel->value],
+                ['card_id' => $card->id, 'channel' => $channel->value, 'kind' => self::KIND],
                 [
                     'status' => InvitationStatus::Queued->value,
                     'phone_e164' => $phone,
@@ -467,12 +520,14 @@ class InvitationCampaignService
         $send = InvitationSend::query()
             ->where('card_id', $card->id)
             ->where('channel', $channel->value)
+            ->where('kind', self::KIND)
             ->first();
 
         if ($send === null) {
             $send = InvitationSend::query()->create([
                 'card_id' => $card->id,
                 'channel' => $channel->value,
+                'kind' => self::KIND,
                 'status' => InvitationStatus::Queued->value,
                 'phone_e164' => $phone,
                 'queued_at' => now(),
@@ -499,7 +554,7 @@ class InvitationCampaignService
     private function markFailed(Card $card, InvitationChannel $channel, string $error): void
     {
         $send = InvitationSend::query()->firstOrCreate(
-            ['card_id' => $card->id, 'channel' => $channel->value],
+            ['card_id' => $card->id, 'channel' => $channel->value, 'kind' => self::KIND],
             ['status' => InvitationStatus::Failed->value, 'queued_at' => now()],
         );
 
@@ -511,7 +566,9 @@ class InvitationCampaignService
 
     private function channelStats(InvitationChannel $channel): array
     {
-        $query = InvitationSend::query()->where('channel', $channel->value);
+        $query = InvitationSend::query()
+            ->where('channel', $channel->value)
+            ->where('kind', self::KIND);
 
         return [
             'sent' => (clone $query)->whereIn('status', [
@@ -526,7 +583,21 @@ class InvitationCampaignService
 
     private function publicCardUrl(Card $card): string
     {
-        return config('app.url') . '/e-card/' . $card->qr_token;
+        // The address a guest can open, from the one place that decides it.
+        //
+        // This used to fall back to the host the request came in on, which
+        // sounds reasonable and is not: on a laptop that is 127.0.0.1, and on
+        // this machine's network it is 10.180.231.187. Neither is reachable
+        // from a phone at the gate, and both were getting sent to guests inside
+        // SMS messages that had already been paid for.
+        return $card->publicUrl();
+    }
+
+    private function isLocalUrl(string $url): bool
+    {
+        $host = parse_url($url, PHP_URL_HOST) ?: '';
+
+        return in_array($host, ['localhost', '127.0.0.1', '::1', '0.0.0.0'], true);
     }
 
     private function eventDetail(): EventDetail

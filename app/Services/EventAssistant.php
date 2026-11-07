@@ -138,7 +138,7 @@ class EventAssistant
             return $this->reply($this->noCardText($guest->full_name, $setting, $language), self::INTENT_CARD, $language);
         }
 
-        $cardUrl = url('/e-card/' . $card->qr_token);
+        $cardUrl = $card->publicUrl();
 
         return $this->reply($this->cardText($guest->full_name, $card, $cardUrl, $language), self::INTENT_CARD, $language);
     }

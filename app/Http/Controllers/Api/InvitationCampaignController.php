@@ -50,6 +50,21 @@ class InvitationCampaignController extends Controller
         ], $result['dispatched'] > 0 ? 200 : 422);
     }
 
+    public function clearSends(Request $request): JsonResponse
+    {
+        $deleted = InvitationSend::query()->delete();
+
+        SecurityLogger::logRequest('invitation_campaign.clear_sends', $request, $request->user(), [
+            'deleted' => $deleted,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => "Send history cleared. {$deleted} record(s) deleted.",
+            'data' => ['deleted' => $deleted],
+        ]);
+    }
+
     public function retryFailed(Request $request): JsonResponse
     {
         $validated = $request->validate([

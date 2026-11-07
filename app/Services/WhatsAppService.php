@@ -94,7 +94,7 @@ class WhatsAppService
     public function waLink(Card $card): string
     {
         $phone = preg_replace('/\D+/', '', $card->guest?->phone ?? '');
-        $url = config('app.url') . '/e-card/' . $card->qr_token;
+        $url = $card->publicUrl();
 
         return "https://wa.me/{$phone}?text=" . rawurlencode($this->buildMessage($card, $url));
     }
@@ -163,7 +163,7 @@ class WhatsAppService
     {
         $card->loadMissing('guest');
 
-        $cardUrl = url('/e-card/' . $card->qr_token);
+        $cardUrl = $card->publicUrl();
         $message = $this->buildMessage($card, $cardUrl);
 
         if (! $this->isConfigured()) {

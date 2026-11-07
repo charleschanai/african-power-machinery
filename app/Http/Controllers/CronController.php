@@ -21,6 +21,9 @@ class CronController extends Controller
 
         $results = ['process_scheduled' => trim(Artisan::output('sms:process-scheduled'))];
 
+        // Keep SMS delivery statuses fresh (Queued -> Sent -> Delivered/Failed).
+        $results['sms_delivery_sync'] = app(\App\Services\InvitationCampaignService::class)->syncSmsDeliveryStatus();
+
         $now = Carbon::now();
 
         if ($now->isSunday() && (int) $now->format('G') === 8) {

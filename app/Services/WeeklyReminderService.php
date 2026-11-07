@@ -106,7 +106,7 @@ class WeeklyReminderService
     {
         $event = EventDetail::singleton();
         $eventName = $card->event_name ?: ($event->event_name ?: 'sherehe zetu');
-        $cardUrl = config('app.url') . '/e-card/' . $card->qr_token;
+        $cardUrl = $card->publicUrl();
 
         $parts = [
             "Habari {$guestName},",

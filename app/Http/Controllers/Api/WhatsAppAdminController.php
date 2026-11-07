@@ -297,7 +297,7 @@ class WhatsAppAdminController extends Controller
                     'phone' => $conversation->guest->phone,
                     'email' => $conversation->guest->email,
                     'card_number' => $card?->card_number,
-                    'card_url' => $card ? url('/e-card/' . $card->qr_token) : null,
+                    'card_url' => $card ? $card->publicUrl() : null,
                     'allowed_people' => $card?->allowed_people,
                 ] : null,
                 'messages' => $messages,

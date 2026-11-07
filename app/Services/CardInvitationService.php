@@ -14,7 +14,7 @@ class CardInvitationService
 
     public function message(Card $card): string
     {
-        $cardUrl = url('/e-card/' . $card->qr_token);
+        $cardUrl = $card->publicUrl();
 
         return $this->whatsApp->buildMessage($card, $cardUrl);
     }

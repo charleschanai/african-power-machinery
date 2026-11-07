@@ -8,22 +8,27 @@ export const useToastStore = defineStore('toast', {
     }),
 
     actions: {
-        success(message) {
-            this.push('success', message);
+        success(message, duration) {
+            this.push('success', message, duration);
         },
-        error(message) {
-            this.push('error', message);
+        error(message, duration) {
+            this.push('error', message, duration);
         },
-        warning(message) {
-            this.push('warning', message);
+        warning(message, duration) {
+            this.push('warning', message, duration);
         },
-        info(message) {
-            this.push('info', message);
+        info(message, duration) {
+            this.push('info', message, duration);
         },
-        push(type, message) {
+        /**
+         * @param {number} [duration] Milliseconds to stay on screen. Long
+         *   messages, such as a phone number that needs explaining, would
+         *   otherwise disappear before they have been read.
+         */
+        push(type, message, duration = 4500) {
             const toast = { id: ++id, type, message };
             this.toasts.push(toast);
-            setTimeout(() => this.remove(toast.id), 4500);
+            setTimeout(() => this.remove(toast.id), duration);
         },
         remove(toastId) {
             this.toasts = this.toasts.filter((t) => t.id !== toastId);

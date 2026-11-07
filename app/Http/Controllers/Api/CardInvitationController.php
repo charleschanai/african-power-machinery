@@ -44,7 +44,7 @@ class CardInvitationController extends Controller
             'data' => [
                 'configured' => $result['configured'] ?? false,
                 'wa_link' => $result['wa_link'] ?? null,
-                'card_url' => $result['card_url'] ?? url('/e-card/' . $card->qr_token),
+                'card_url' => $result['card_url'] ?? $card->publicUrl(),
             ],
         ], $result['success'] ? 200 : 422);
     }

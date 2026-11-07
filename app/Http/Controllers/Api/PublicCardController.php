@@ -37,6 +37,14 @@ class PublicCardController extends Controller
                     'allowed_people' => $card->allowed_people,
                     'used_people' => $card->used_people,
                     'qr_token' => $card->qr_token,
+                    // Sent to the page so the QR code it draws is built from the
+                    // address guests can actually open. The page used to draw the
+                    // QR from its own address bar, which meant a card opened on a
+                    // laptop encoded 127.0.0.1, and a guest's camera scanned a
+                    // link that went nowhere. A printed card cannot be corrected
+                    // after it is handed out, so this value has to be right every
+                    // time rather than right for whoever happened to open it.
+                    'card_url' => $card->publicUrl(),
                     'event_name' => $card->event_name,
                     'event_date' => $card->event_date?->toDateString(),
                     'event_time' => $card->event_time,

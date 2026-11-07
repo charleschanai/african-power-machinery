@@ -499,7 +499,10 @@ function resetCount() {
 }
 
 function onScannerError() {
-    toast.warning('Camera could not open. Please use the name or card number search.');
+    // The scanner shows the precise reason (denied / no camera / HTTP / busy)
+    // next to the video, so the toast only needs to point the user at the
+    // fallback search instead of repeating a vague "camera could not open".
+    toast.warning('Camera unavailable. Use the name or card number search below.');
 }
 
 async function confirmCard() {

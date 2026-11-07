@@ -478,9 +478,19 @@ const expiryClass = computed(() => {
     return new Date(card.value.expires_at) < new Date() ? 'text-rose-600' : 'text-slate-900';
 });
 
+/*
+ * The address printed inside this card's QR code.
+ *
+ * This screen prints the card that is handed to the guest, so getting this
+ * wrong cannot be undone later. window.location.origin was used here, which on
+ * the machine that prints the card is 127.0.0.1, or 10.180.231.187 on the local
+ * network. A guest scanning that with a phone at the gate gets nothing at all,
+ * because their phone has never heard of either address. The server is asked
+ * instead, since it is the only side that knows the public one.
+ */
 const cardUrl = computed(() => {
     if (!card.value) return '';
-    return `${window.location.origin}/e-card/${card.value.qr_token}`;
+    return card.value.card_url || `${window.location.origin}/e-card/${card.value.qr_token}`;
 });
 
 const waLink = computed(() => {

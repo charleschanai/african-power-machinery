@@ -12,10 +12,16 @@ class UpdateCardRequest extends FormRequest
         return $this->user()?->isAdmin() ?? false;
     }
 
+    /**
+     * A card's owner is decided when the card is created and never changes
+     * afterwards, so guest_id is deliberately absent here. This form only edits
+     * the event details printed on a card. Requiring guest_id on an update used
+     * to fail with "Please select a guest" on screens that have no guest picker
+     * at all, and honouring it would silently move a card to the wrong guest.
+     */
     public function rules(): array
     {
         return [
-            'guest_id' => ['required', 'exists:guests,id'],
             'card_template_id' => ['nullable', 'exists:card_templates,id'],
             'card_type' => ['required', Rule::in(['single', 'double'])],
             'card_number' => [
@@ -38,8 +44,6 @@ class UpdateCardRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'guest_id.required' => 'Please select a guest.',
-            'guest_id.exists' => 'This guest does not exist.',
             'card_template_id.exists' => 'This template does not exist.',
             'card_number.unique' => 'This card number is already in use.',
             'card_type.required' => 'Card type is required.',

@@ -41,8 +41,29 @@ class WhatsAppWebhookController extends Controller
     {
         $secret = config('services.whatsapp.app_secret');
 
-        if (filled($secret) && ! $this->signatureIsValid($request, $secret)) {
-            Log::warning('WhatsApp webhook signature verification failed');
+        /*
+         * Fail closed.
+         *
+         * This used to read `if (filled($secret) && ! $this->signatureIsValid(...))`,
+         * which meant an unset WHATSAPP_APP_SECRET — the state .env.example
+         * ships in — disabled verification entirely. That made this an open
+         * write endpoint: anyone who could reach the host could post a
+         * crafted payload and have the assistant reply to real guests, at
+         * the cost of a paid LLM call per message.
+         *
+         * Refusing the request is the only safe default. The monitoring layer
+         * reports the misconfiguration separately.
+         */
+        if (! filled($secret)) {
+            Log::channel('monitoring')->critical('WhatsApp webhook rejected: WHATSAPP_APP_SECRET is not set');
+
+            return response()->json(['status' => 'not_configured'], 503);
+        }
+
+        if (! $this->signatureIsValid($request, $secret)) {
+            Log::channel('security')->warning('WhatsApp webhook signature verification failed', [
+                'ip' => $request->ip(),
+            ]);
 
             return response()->json(['status' => 'rejected'], 403);
         }

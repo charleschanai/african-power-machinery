@@ -18,6 +18,10 @@
                     <Mail class="h-4 w-4" />
                     {{ sendingEmails ? 'Sending...' : 'Send Emails' }}
                 </button>
+                <button type="button" class="btn btn-secondary" :disabled="sendingSmsBulk" @click="sendBulkSms">
+                    <Smartphone class="h-4 w-4" />
+                    {{ sendingSmsBulk ? 'Sending...' : 'Send SMS' }}
+                </button>
                 <button type="button" class="btn btn-secondary" :disabled="exporting" @click="doExport">
                     <Download class="h-4 w-4" />
                     {{ exporting ? 'Downloading...' : 'Download CSV' }}
@@ -117,7 +121,7 @@
                                             class="h-12 w-16 rounded-lg object-cover ring-1 ring-slate-200"
                                         />
                                         <div class="absolute bottom-0 right-0 rounded bg-white p-px shadow-sm">
-                                            <QRCodeCanvas :value="`${baseUrl}/e-card/${card.qr_token}`" :size="18" />
+                                            <QRCodeCanvas :value="card.card_url || `${baseUrl}/e-card/${card.qr_token}`" :size="18" />
                                         </div>
                                     </div>
                                     <span v-else class="flex h-12 w-16 items-center justify-center rounded-lg bg-slate-100 text-slate-400">
@@ -226,6 +230,11 @@
                             <div>
                                 <h3 class="text-lg font-bold tracking-tight text-slate-900">Edit Card</h3>
                                 <p class="font-mono text-xs text-slate-400">{{ editTarget?.card_number }}</p>
+                                <p v-if="editTarget?.guest" class="mt-1 flex items-center gap-1.5 text-xs font-semibold text-slate-600">
+                                    <span class="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-[11px] text-slate-500">{{ editTarget.card_number }}</span>
+                                    <span class="text-slate-300">&middot;</span>
+                                    <span>for {{ editTarget.guest.full_name || editTarget.guest.name }}</span>
+                                </p>
                             </div>
                         </div>
                         <button
@@ -434,6 +443,15 @@ import { useToastStore } from '../stores/toast';
 import { cardStatusLabel, cardTypeLabel, statusBadge } from '../utils/labels';
 
 const toast = useToastStore();
+
+/*
+ * Only a fallback now.
+ *
+ * The QR codes in the list read card.card_url, which the server builds from the
+ * address guests can actually open. This stays only so an older server that
+ * does not send that field still draws something, because a blank square in a
+ * table of cards looks like a broken page rather than an old version.
+ */
 const baseUrl = window.location.origin;
 
 const cards = ref([]);
@@ -450,6 +468,7 @@ const exporting = ref(false);
 const copyingLinks = ref(false);
 const copyingWa = ref(false);
 const sendingEmails = ref(false);
+const sendingSmsBulk = ref(false);
 const showImport = ref(false);
 const importing = ref(false);
 const selectedFile = ref(null);
@@ -708,6 +727,25 @@ async function sendBulkEmails() {
         toast.error(error.response?.data?.message || 'Failed to send emails.');
     } finally {
         sendingEmails.value = false;
+    }
+}
+
+async function sendBulkSms() {
+    if (!cards.value.length) {
+        toast.error('No cards to send SMS to.');
+        return;
+    }
+
+    const cardIds = cards.value.map(c => c.id);
+
+    sendingSmsBulk.value = true;
+    try {
+        const result = await cardsService.sendSmsBulk(cardIds);
+        toast[result.success ? 'success' : 'warning'](result.message);
+    } catch (error) {
+        toast.error(error.response?.data?.message || 'Failed to send SMS.');
+    } finally {
+        sendingSmsBulk.value = false;
     }
 }
 

@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\InvitationChannel;
+use App\Enums\InvitationSendKind;
 use App\Enums\InvitationStatus;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -12,6 +13,7 @@ class InvitationSend extends Model
     protected $fillable = [
         'card_id',
         'channel',
+        'kind',
         'status',
         'phone_e164',
         'provider_message_id',
@@ -24,6 +26,7 @@ class InvitationSend extends Model
 
     protected $casts = [
         'channel' => InvitationChannel::class,
+        'kind' => InvitationSendKind::class,
         'status' => InvitationStatus::class,
         'queued_at' => 'datetime',
         'scheduled_at' => 'datetime',

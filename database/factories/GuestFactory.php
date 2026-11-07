@@ -16,9 +16,20 @@ class GuestFactory extends Factory
     {
         return [
             'full_name' => fake()->name(),
-            'phone' => '2557' . fake()->numerify('#########'),
+            // unique() is required: guests.phone carries a UNIQUE constraint
+            // and EntryLogFactory creates two guests per row, so a plain
+            // numerify() collides sooner or later.
+            'phone' => '2557'.fake()->unique()->numerify('########'),
             'email' => fake()->unique()->safeEmail(),
             'notes' => fake()->optional()->sentence(),
         ];
+    }
+
+    /** A guest who can be reached on WhatsApp or SMS. */
+    public function contactable(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'phone_e164' => \App\Services\PhoneHelper::toE164($attributes['phone']),
+        ]);
     }
 }

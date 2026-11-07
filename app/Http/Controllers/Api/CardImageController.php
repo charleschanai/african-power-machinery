@@ -15,7 +15,7 @@ class CardImageController extends Controller
     {
         $card->load('guest', 'cardTemplate');
 
-        $cardUrl = url('/e-card/' . $card->qr_token);
+        $cardUrl = $card->publicUrl();
 
         return response()->json([
             'success' => true,
@@ -57,7 +57,7 @@ class CardImageController extends Controller
             ], 422);
         }
 
-        $cardUrl = url('/e-card/' . $card->qr_token);
+        $cardUrl = $card->publicUrl();
         $outputPath = storage_path("app/public/composites/{$card->card_number}-{$side}.png");
 
         File::ensureDirectoryExists(dirname($outputPath));

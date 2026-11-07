@@ -95,7 +95,7 @@ class CardController extends Controller
             'message' => 'The card has been created.',
             'data' => [
                 'card' => $card,
-                'card_url' => url('/e-card/' . $card->qr_token),
+                'card_url' => $card->publicUrl(),
             ],
         ], 201);
     }
@@ -104,7 +104,10 @@ class CardController extends Controller
     {
         $this->authorize('update', $card);
 
-        $data = $request->safe()->except(['card_type']);
+        // guest_id is dropped on purpose: a card belongs to the guest it was
+        // issued to, and editing the event details must never move it to a
+        // different person. Reassigning a card is a separate, deliberate action.
+        $data = $request->safe()->except(['card_type', 'guest_id']);
 
         if ($request->filled('card_type') && $request->input('card_type') !== $card->card_type->value) {
             $type = CardType::from($request->input('card_type'));
@@ -127,7 +130,7 @@ class CardController extends Controller
             'message' => 'The card has been updated.',
             'data' => [
                 'card' => $card,
-                'card_url' => url('/e-card/' . $card->qr_token),
+                'card_url' => $card->publicUrl(),
             ],
         ]);
     }
@@ -338,7 +341,7 @@ class CardController extends Controller
             'success' => true,
             'data' => [
                 'card' => $card,
-                'card_url' => url('/e-card/' . $card->qr_token),
+                'card_url' => $card->publicUrl(),
             ],
         ]);
     }
@@ -441,7 +444,7 @@ class CardController extends Controller
                 'phone' => $card->guest?->phone ?? '-',
                 'email' => $card->guest?->email ?? '-',
                 'card_number' => $card->card_number,
-                'card_url' => url('/e-card/' . $card->qr_token),
+                'card_url' => $card->publicUrl(),
             ];
         });
 
@@ -540,7 +543,7 @@ class CardController extends Controller
 
         if ($message === '') {
             $campaign = app(InvitationCampaignService::class);
-            $message = $campaign->smsMessage($card, url('/e-card/' . $card->qr_token));
+            $message = $campaign->smsMessage($card, $card->publicUrl());
         }
 
         $smsService = new SmsService();
@@ -590,7 +593,7 @@ class CardController extends Controller
 
             $message = $customMessage !== ''
                 ? $customMessage
-                : $campaign->smsMessage($card, url('/e-card/' . $card->qr_token));
+                : $campaign->smsMessage($card, $card->publicUrl());
 
             $result = $smsService->send($phone, $message);
 

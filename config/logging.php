@@ -127,6 +127,83 @@ return [
             'path' => storage_path('logs/laravel.log'),
         ],
 
+        /* ---------------------------------------------------------------- */
+        /*  Application channels                                             */
+        /*                                                                  */
+        /*  Each concern gets its own file so that a log rotation never       */
+        /*  takes the one file you urgently need with it, and so an operator */
+        /*  can tail "sql.log" or "error.log" directly.                      */
+        /* ---------------------------------------------------------------- */
+
+        // Errors and unhandled exceptions.
+        'errorlog_daily' => [
+            'driver' => 'daily',
+            'path' => storage_path('logs/error.log'),
+            'level' => env('LOG_ERROR_LEVEL', 'error'),
+            'days' => env('LOG_ERROR_DAYS', 30),
+            'replace_placeholders' => true,
+        ],
+
+        // Slow queries and N+1 suspects. Kept separate from the app log so
+        // the noise never buries a real error message.
+        'sql' => [
+            'driver' => 'daily',
+            'path' => storage_path('logs/sql.log'),
+            'level' => env('LOG_SQL_LEVEL', 'info'),
+            'days' => env('LOG_SQL_DAYS', 14),
+            'replace_placeholders' => true,
+        ],
+
+        // Request-level performance data (duration, memory, status).
+        'performance' => [
+            'driver' => 'daily',
+            'path' => storage_path('logs/performance.log'),
+            'level' => env('LOG_PERFORMANCE_LEVEL', 'info'),
+            'days' => env('LOG_PERFORMANCE_DAYS', 7),
+            'replace_placeholders' => true,
+        ],
+
+        // Authentication, authorisation and audit-trail events.
+        'security' => [
+            'driver' => 'daily',
+            'path' => storage_path('logs/security.log'),
+            'level' => env('LOG_SECURITY_LEVEL', 'info'),
+            'days' => env('LOG_SECURITY_DAYS', 60),
+            'replace_placeholders' => true,
+        ],
+
+        // Outbound provider traffic: WhatsApp, SMS, email, AI.
+        'external' => [
+            'driver' => 'daily',
+            'path' => storage_path('logs/external.log'),
+            'level' => env('LOG_EXTERNAL_LEVEL', 'info'),
+            'days' => env('LOG_EXTERNAL_DAYS', 14),
+            'replace_placeholders' => true,
+        ],
+
+        // Health-check and alert delivery. Small and long-lived on purpose.
+        'monitoring' => [
+            'driver' => 'daily',
+            'path' => storage_path('logs/monitoring.log'),
+            'level' => env('LOG_MONITORING_LEVEL', 'info'),
+            'days' => env('LOG_MONITORING_DAYS', 30),
+            'replace_placeholders' => true,
+        ],
+
+        // Under Docker/Railway there is no writable log directory worth
+        // relying on; the container runtime collects stderr instead.
+        'stderr_all' => [
+            'driver' => 'monolog',
+            'level' => env('LOG_LEVEL', 'debug'),
+            'handler' => StreamHandler::class,
+            'handler_with' => ['stream' => 'php://stderr'],
+            'formatter' => env('LOG_STDERR_FORMATTER'),
+            'formatter_with' => [
+                'format' => "[%datetime%] %channel%.%level_name%: %message% %context%\n",
+            ],
+            'processors' => [PsrLogMessageProcessor::class],
+        ],
+
     ],
 
 ];

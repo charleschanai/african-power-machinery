@@ -5,6 +5,25 @@
         Roboto, "Helvetica Neue", Arial, sans-serif;
     --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas,
         "Liberation Mono", "Courier New", monospace;
+    --font-serif: "Cormorant Garamond", "Times New Roman", Times, Georgia, serif;
+
+    /* Gold, tuned for an onyx ground. Real gold is a warm yellow that turns
+       slightly green in its highlights, which is why these are not a straight
+       copy of Tailwind's amber ramp. */
+    --color-gold-100: #fdf7e7;
+    --color-gold-200: #f9ecc4;
+    --color-gold-300: #f3dc97;
+    --color-gold-400: #e9c86a;
+    --color-gold-500: #d6ac44;
+    --color-gold-600: #b58a2c;
+    --color-gold-700: #8c6722;
+
+    /* Onyx, the near black the card sits on. Warmer than slate so the gold
+       above does not look like a yellow sticker on a cold background. */
+    --color-onyx-700: #241d10;
+    --color-onyx-800: #191408;
+    --color-onyx-900: #110d05;
+    --color-onyx-950: #0a0803;
 }
 
 [v-cloak] {

@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\EntryResult;
 use App\Enums\VerificationMethod;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -11,6 +12,12 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class EntryLog extends Model
 {
     use HasFactory;
+
+    /**
+     * The entry-log list always renders the guest, card and officer, so load
+     * them together instead of letting the table render in three passes.
+     */
+    protected $with = ['guest', 'card', 'processor'];
 
     protected $fillable = [
         'card_id',
@@ -49,5 +56,44 @@ class EntryLog extends Model
     public function processor(): BelongsTo
     {
         return $this->belongsTo(User::class, 'processed_by');
+    }
+
+    /* ------------------------------------------------------------------ */
+    /*  Query scopes                                                       */
+    /* ------------------------------------------------------------------ */
+
+    public function scopeResult(Builder $query, EntryResult|string|null $result): Builder
+    {
+        if ($result === null || $result === '') {
+            return $query;
+        }
+
+        return $query->where('result', $result instanceof EntryResult ? $result->value : $result);
+    }
+
+    public function scopeAllowed(Builder $query): Builder
+    {
+        return $query->where('result', EntryResult::Allowed->value);
+    }
+
+    public function scopeDenied(Builder $query): Builder
+    {
+        return $query->where('result', '!=', EntryResult::Allowed->value);
+    }
+
+    public function scopeSince(Builder $query, ?\DateTimeInterface $moment): Builder
+    {
+        return $moment ? $query->where('scanned_at', '>=', $moment) : $query;
+    }
+
+    public function scopeSearchGuestName(Builder $query, ?string $term): Builder
+    {
+        $term = trim((string) $term);
+
+        if ($term === '') {
+            return $query;
+        }
+
+        return $query->whereHas('guest', fn (Builder $q) => $q->where('full_name', 'like', "%{$term}%"));
     }
 }

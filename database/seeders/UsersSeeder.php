@@ -19,13 +19,5 @@ class UsersSeeder extends Seeder
             ]
         );
 
-        User::updateOrCreate(
-            ['email' => 'staff@ecard.local'],
-            [
-                'name' => 'Gate Attendant',
-                'password' => Hash::make('password'),
-                'role' => 'staff',
-            ]
-        );
     }
 }
