@@ -12,6 +12,9 @@
                 <p v-if="lastLoadedAt" class="text-xs text-slate-400">
                     Updated <span class="font-medium text-slate-500">{{ lastLoadedAt }}</span>
                 </p>
+                <button type="button" class="btn btn-primary text-sm" @click="invitationReport?.download()">
+                    DOWNLOAD INVITATION REPORT PDF
+                </button>
                 <button
                     type="button"
                     class="btn btn-secondary text-sm"
@@ -28,6 +31,8 @@
                 </button>
             </div>
         </div>
+
+        <InvitationReport ref="invitationReport" />
 
         <!-- SMS not configured -->
         <div
@@ -426,12 +431,23 @@
                             <select id="inv-card" v-model="form.card_id" class="input" @change="onCardChange">
                                 <option value="">{{ form.card_type === 'none' ? 'No card' : `Select a ${form.card_type} card...` }}</option>
                                 <option v-for="c in selectedGuestCards" :key="c.id" :value="c.id">
-                                    {{ c.card_number }}{{ c.template_name ? ` — ${c.template_name}` : '' }}
+                                    {{ c.card_number }}{{ c.template_name ? ` - ${c.template_name}` : ' - No design assigned' }}
                                 </option>
                             </select>
                             <p class="mt-1 text-xs text-slate-400">
-                                Pick an already-uploaded design. There is no need to upload it again.
+                                This list shows issued {{ form.card_type }} cards for the selected guest. Cards without an assigned design still appear and can be selected.
                             </p>
+                        </div>
+
+                        <div v-if="form.card_type !== 'none' && form.card_id && matchingTemplates.length">
+                            <label for="inv-card-template" class="label">Design Template</label>
+                            <select id="inv-card-template" v-model="form.card_template_id" class="input">
+                                <option value="">Keep current design</option>
+                                <option v-for="template in matchingTemplates" :key="template.id" :value="template.id" :disabled="template.status !== 'active' && Number(template.id) !== Number(form.card_template_id)">
+                                    {{ template.name }}{{ template.status !== 'active' ? ' (turned off)' : '' }}
+                                </option>
+                            </select>
+                            <p class="mt-1 text-xs text-slate-400">Choosing a design assigns it to this selected card only.</p>
                         </div>
 
                         <!-- Event -->
@@ -702,6 +718,7 @@ import {
     X,
 } from '@lucide/vue';
 import ConfirmDialog from '../components/ConfirmDialog.vue';
+import InvitationReport from '../components/InvitationReport.vue';
 import Pagination from '../components/Pagination.vue';
 import StatCard from '../components/StatCard.vue';
 import { invitationsService } from '../services/invitations';
@@ -739,6 +756,7 @@ const form = ref(emptyForm());
 
 const viewing = ref(null);
 const sendingId = ref(null);
+const invitationReport = ref(null);
 
 const reminderFor = ref(null);
 const reminderDraft = ref('');
@@ -753,6 +771,7 @@ function emptyForm() {
         card_type: 'single',
         guest_id: '',
         card_id: '',
+        card_template_id: '',
         phone: '',
         event_name: '',
         event_date: '',
@@ -835,6 +854,7 @@ const selectedGuest = computed(() =>
     (formOptions.value?.guests ?? []).find((g) => Number(g.id) === Number(form.value.guest_id)) ?? null
 );
 const selectedGuestCards = computed(() => (selectedGuest.value?.cards ?? []).filter((card) => card.card_type === form.value.card_type));
+const matchingTemplates = computed(() => (formOptions.value?.templates ?? []).filter((template) => template.card_type === form.value.card_type));
 const currentCardDefaults = computed(() => formOptions.value?.card_defaults?.[form.value.card_type === 'double' ? 'double' : 'single'] ?? null);
 const guestGroups = computed(() => {
     const collator = new Intl.Collator('en', { sensitivity: 'base' });
@@ -1134,6 +1154,7 @@ function clearSelection() {
 function onGuestChange() {
     form.value.phone = selectedGuest.value?.phone ?? '';
     form.value.card_id = '';
+    form.value.card_template_id = '';
 }
 
 function setInvitationCardType(type) {
@@ -1141,6 +1162,7 @@ function setInvitationCardType(type) {
     form.value.card_type = type;
     form.value.guest_id = '';
     form.value.card_id = '';
+    form.value.card_template_id = '';
     form.value.phone = '';
     applyCardDefaults(type);
 }
@@ -1159,6 +1181,7 @@ function applyCardDefaults(type) {
 
 function onCardChange() {
     const card = selectedGuestCards.value.find((c) => Number(c.id) === Number(form.value.card_id));
+    form.value.card_template_id = card?.card_template_id ?? '';
     if (!card) return;
     form.value.event_name ||= card.event_name || '';
     form.value.event_date ||= card.event_date || '';
@@ -1188,6 +1211,7 @@ async function openEdit(row) {
         card_type: 'single',
         guest_id: row.guest_id ?? '',
         card_id: row.card_id ?? '',
+        card_template_id: row.card_template_id ?? '',
         phone: row.phone ?? '',
         event_name: row.event_name ?? '',
         event_date: row.event_date ?? '',
@@ -1200,6 +1224,7 @@ async function openEdit(row) {
     const guest = (formOptions.value?.guests ?? []).find((item) => Number(item.id) === Number(row.guest_id));
     const existingCard = (guest?.cards ?? []).find((card) => Number(card.id) === Number(row.card_id));
     form.value.card_type = existingCard?.card_type ?? 'none';
+    form.value.card_template_id = existingCard?.card_template_id ?? '';
     showForm.value = true;
 }
 
@@ -1218,6 +1243,7 @@ async function submit() {
         const payload = {
             guest_id: Number(form.value.guest_id),
             card_id: form.value.card_id ? Number(form.value.card_id) : null,
+            card_template_id: form.value.card_template_id ? Number(form.value.card_template_id) : null,
             phone: form.value.phone,
             event_name: form.value.event_name,
             event_date: form.value.event_date,

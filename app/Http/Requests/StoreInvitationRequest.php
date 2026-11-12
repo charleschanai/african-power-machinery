@@ -17,6 +17,7 @@ class StoreInvitationRequest extends FormRequest
         return [
             'guest_id' => ['required', 'integer', 'exists:guests,id'],
             'card_id' => ['nullable', 'integer', 'exists:cards,id'],
+            'card_template_id' => ['nullable', 'integer', 'exists:card_templates,id'],
 
             'phone' => ['required', 'string', 'max:32'],
 

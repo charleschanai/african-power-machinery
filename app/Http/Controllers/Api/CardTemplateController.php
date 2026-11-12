@@ -9,6 +9,7 @@ use App\Models\CardTemplate;
 use App\Services\SecurityLogger;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
 class CardTemplateController extends Controller
@@ -124,27 +125,24 @@ class CardTemplateController extends Controller
 
     public function destroy(Request $request, CardTemplate $cardTemplate): JsonResponse
     {
-        if ($cardTemplate->cards()->exists()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'This template is in use by existing cards and cannot be deleted.',
-                'error_code' => 'TEMPLATE_IN_USE',
-            ], 422);
-        }
-
-        if ($cardTemplate->front_design) {
-            Storage::disk('public')->delete($cardTemplate->front_design);
-        }
-        if ($cardTemplate->back_design) {
-            Storage::disk('public')->delete($cardTemplate->back_design);
-        }
+        $frontDesign = $cardTemplate->front_design;
+        $backDesign = $cardTemplate->back_design;
 
         SecurityLogger::logRequest('card_template.destroy', $request, $request->user(), [
             'template_id' => $cardTemplate->id,
             'name' => $cardTemplate->name,
         ]);
 
-        $cardTemplate->delete();
+        // The card_template_id FK uses ON DELETE SET NULL, so existing card
+        // records remain intact when their design is removed.
+        DB::transaction(fn () => $cardTemplate->delete());
+
+        if ($frontDesign) {
+            Storage::disk('public')->delete($frontDesign);
+        }
+        if ($backDesign) {
+            Storage::disk('public')->delete($backDesign);
+        }
 
         return response()->json([
             'success' => true,

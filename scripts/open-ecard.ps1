@@ -118,38 +118,14 @@ if (Test-Port -OnPort $Port) {
 # 3. Optional HTTPS tunnel
 # ---------------------------------------------------------------------------
 if ($Tunnel) {
-    $ngrok = Get-Command ngrok -ErrorAction SilentlyContinue
-
-    if (-not $ngrok) {
-        Write-Host 'ngrok not found on PATH.' -ForegroundColor Yellow
+    if (Get-Command ngrok -ErrorAction SilentlyContinue) {
+        $global:LASTEXITCODE = 0
+        & (Join-Path $PSScriptRoot 'ngrok-ecard.ps1') -Action start -Port $Port
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host 'ngrok tunnel failed. Run .\scripts\ngrok-ecard.ps1 -Action status for details.' -ForegroundColor Yellow
+        }
     } else {
-        $log = Join-Path $env:TEMP 'ngrok-ecard.log'
-        Remove-Item $log -Force -ErrorAction SilentlyContinue
-
-        Write-Host 'Starting ngrok...' -ForegroundColor Cyan
-        Start-Process -FilePath $ngrok.Source `
-            -ArgumentList @('http', "$Port", '--log', 'stdout', '--log-format', 'logfmt') `
-            -WindowStyle Hidden `
-            -RedirectStandardOutput $log | Out-Null
-
-        $publicUrl = $null
-        $deadline = (Get-Date).AddSeconds(75)
-        while ((Get-Date) -lt $deadline) {
-            Start-Sleep -Seconds 3
-            if (Test-Path $log) {
-                $hit = Select-String -Path $log -Pattern 'url=(\S+)' | Select-Object -First 1
-                if ($hit) { $publicUrl = $hit.Matches[0].Groups[1].Value; break }
-            }
-        }
-
-        if ($publicUrl) {
-            Write-Host ''
-            Write-Host "  HTTPS:  $publicUrl" -ForegroundColor Green
-            Write-Host '  Open this on your phone to test the QR camera.' -ForegroundColor Green
-            Write-Host ''
-        } else {
-            Write-Host 'ngrok did not report a URL. Check %TEMP%\ngrok-ecard.log' -ForegroundColor Yellow
-        }
+        Write-Host 'ngrok not found on PATH. Install it with: winget install ngrok.ngrok' -ForegroundColor Yellow
     }
 }
 

@@ -201,7 +201,7 @@
         <ConfirmDialog
             :open="deleteTarget !== null"
             title="Delete Guest"
-            :message="`Are you sure you want to delete ${deleteTarget?.full_name}? This action cannot be undone.`"
+            :message="`Delete ${deleteTarget?.full_name}? Their saved invitations and cards will also be deleted. SMS delivery history will be retained where possible. This action cannot be undone.`"
             confirm-label="Delete"
             @confirm="doDelete"
             @close="deleteTarget = null"

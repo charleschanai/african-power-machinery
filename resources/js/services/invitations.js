@@ -25,6 +25,26 @@ export const invitationsService = {
         return data.data;
     },
 
+    async report(params) {
+        const { data } = await api.get('/invitations/report', { params });
+        return data.data;
+    },
+
+    async downloadReport(params, kind = 'all') {
+        const { data } = await api.get('/invitations/report/download', {
+            params: { ...params, kind },
+            responseType: 'blob',
+        });
+        const url = URL.createObjectURL(data);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `invitation-${kind}-report.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    },
+
     async show(id) {
         const { data } = await api.get(`/invitations/${id}`);
         return data.data;

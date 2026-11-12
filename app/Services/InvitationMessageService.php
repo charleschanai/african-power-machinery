@@ -37,7 +37,7 @@ class InvitationMessageService
     public function defaultWeddingDetails(string $cardType = 'single'): string
     {
         $salutation = $cardType === 'double' ? 'MR&MRS/PROF/DR/MR/MS' : 'MR&MS/PROF/DR/MR/MS';
-        $cardLabel = $cardType === 'double' ? 'Double' : 'Single';
+        $cardLabel = strtoupper($cardType === 'double' ? 'Double' : 'Single');
 
         return implode("\n", [
             'Familia ya Jamson Lusige Mwangunguru inayo furaha kukualika/kuwaalika',
@@ -45,7 +45,7 @@ class InvitationMessageService
             'Kwenye harusi ya',
             'SOLOMON JAMSON & WINFRIDA TESHA',
             'Itakayofanyika 14/11/2026',
-            'Aina ya Kadi '.$cardLabel,
+            $cardLabel,
             '',
             'IBADA',
             'Ibada itafanyika katika Kanisa la KKKT Tumbi Kibaha',
@@ -55,7 +55,7 @@ class InvitationMessageService
             'La-Dariot Social Hall Magari Saba Mbezi',
             'Muda: 12:00 Jioni',
             '',
-            'DRESSING CODE: Gold, Golden Brown, Tea Blue!!',
+            'DRESSING CODE: Emerald green, gold, brown & teal blue',
             '',
             'MAWASILIANO: 0683205067 / 0787615263',
         ]);

@@ -3,6 +3,9 @@
 namespace App\Http\Controllers\Api;
 
 use App\Enums\InvitationState;
+use App\Enums\InvitationChannel;
+use App\Enums\InvitationSendKind;
+use App\Enums\InvitationStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreInvitationRequest;
 use App\Http\Requests\UpdateInvitationRequest;
@@ -11,12 +14,16 @@ use App\Models\CardTemplate;
 use App\Models\EventDetail;
 use App\Models\Guest;
 use App\Models\Invitation;
+use App\Models\InvitationSend;
 use App\Services\InvitationMessageService;
+use App\Services\InvitationReportPdf;
 use App\Services\MessageTemplateRenderer;
 use App\Services\PhoneHelper;
 use App\Services\SmsService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class InvitationController extends Controller
 {
@@ -58,7 +65,7 @@ class InvitationController extends Controller
         $guests = Guest::query()
             ->search(request()->query('q'))
             ->orderBy('full_name')
-            ->with(['cards' => fn ($query) => $query->whereNotNull('card_template_id')->with('cardTemplate')])
+            ->with(['cards' => fn ($query) => $query->with('cardTemplate')])
             ->get()
             ->map(fn (Guest $guest) => [
                 'id' => $guest->id,
@@ -69,6 +76,7 @@ class InvitationController extends Controller
                     ->map(fn (Card $card) => [
                         'id' => $card->id,
                         'card_type' => $card->card_type?->value ?? $card->getRawOriginal('card_type'),
+                        'card_template_id' => $card->card_template_id,
                         'card_number' => $card->card_number,
                         'template_name' => $card->cardTemplate?->name,
                         'image' => $card->cardTemplate?->frontUrl(),
@@ -102,11 +110,12 @@ class InvitationController extends Controller
             'data' => [
                 'guests' => $guests,
                 'templates' => CardTemplate::query()
-                    ->where('status', 'active')
                     ->get()
                     ->map(fn (CardTemplate $template) => [
                         'id' => $template->id,
                         'name' => $template->name,
+                        'card_type' => $template->card_type->value,
+                        'status' => $template->status,
                         'image' => $template->frontUrl(),
                     ]),
                 'event' => [
@@ -128,6 +137,8 @@ class InvitationController extends Controller
     public function store(StoreInvitationRequest $request): JsonResponse
     {
         $data = $request->validated();
+        $templateId = $data['card_template_id'] ?? null;
+        unset($data['card_template_id']);
 
         // Fill event fields from the selected card if the admin left them blank.
         if ($cardId = $data['card_id'] ?? null) {
@@ -141,7 +152,13 @@ class InvitationController extends Controller
             }
         }
 
-        $invitation = Invitation::query()->create($data);
+        $invitation = DB::transaction(function () use ($data, $templateId) {
+            if ($templateId) {
+                $this->assignCardTemplate((int) $data['guest_id'], isset($data['card_id']) ? (int) $data['card_id'] : null, (int) $templateId);
+            }
+
+            return Invitation::query()->create($data);
+        });
 
         return response()->json([
             'success' => true,
@@ -164,13 +181,55 @@ class InvitationController extends Controller
 
     public function update(UpdateInvitationRequest $request, Invitation $invitation): JsonResponse
     {
-        $invitation->update($request->validated());
+        $data = $request->validated();
+        $templateId = $data['card_template_id'] ?? null;
+        unset($data['card_template_id']);
+
+        DB::transaction(function () use ($data, $templateId, $invitation) {
+            if ($templateId) {
+                $this->assignCardTemplate((int) $data['guest_id'], isset($data['card_id']) ? (int) $data['card_id'] : null, (int) $templateId);
+            }
+
+            $invitation->update($data);
+        });
 
         return response()->json([
             'success' => true,
             'message' => 'Invitation updated.',
             'data' => $invitation->fresh()->toFrontendArray(),
         ]);
+    }
+
+    private function assignCardTemplate(int $guestId, ?int $cardId, int $templateId): void
+    {
+        if (! $cardId) {
+            throw ValidationException::withMessages([
+                'card_id' => 'Choose an issued card before assigning a design template.',
+            ]);
+        }
+
+        $card = Card::query()->where('guest_id', $guestId)->find($cardId);
+        $template = CardTemplate::query()->find($templateId);
+
+        if (! $card) {
+            throw ValidationException::withMessages([
+                'card_id' => 'The selected card does not belong to this guest.',
+            ]);
+        }
+
+        if (! $template || $template->card_type !== $card->card_type) {
+            throw ValidationException::withMessages([
+                'card_template_id' => 'Choose a design template with the same card type.',
+            ]);
+        }
+
+        if (! $template->isActive() && (int) $card->card_template_id !== $template->id) {
+            throw ValidationException::withMessages([
+                'card_template_id' => 'This template is turned off. Turn it on before assigning it to a card.',
+            ]);
+        }
+
+        $card->update(['card_template_id' => $template->id]);
     }
 
     public function destroy(Invitation $invitation): JsonResponse
@@ -323,6 +382,98 @@ class InvitationController extends Controller
                 'public_url_ok' => $publicUrl['ok'],
                 'public_url_status' => $publicUrl,
             ],
+        ]);
+    }
+
+    /** Data for the administrator-only invitation and SMS delivery report. */
+    public function report(Request $request): JsonResponse
+    {
+        $filters = $request->validate([
+            'event' => ['nullable', 'string', 'max:255'],
+            'campaign' => ['nullable', 'in:all,invitation,reminder'],
+            'from' => ['nullable', 'date'],
+            'to' => ['nullable', 'date', 'after_or_equal:from'],
+            'status' => ['nullable', 'in:all,delivered,failed,pending'],
+        ]);
+
+        $events = Invitation::query()->whereNotNull('event_name')->distinct()->orderBy('event_name')->pluck('event_name');
+        $query = Invitation::query()->with(['guest', 'card']);
+        if (! empty($filters['event'])) $query->where('event_name', $filters['event']);
+        if (! empty($filters['from'])) $query->whereDate('created_at', '>=', $filters['from']);
+        if (! empty($filters['to'])) $query->whereDate('created_at', '<=', $filters['to']);
+
+        $rows = $query->orderBy('id')->get()->map(function (Invitation $invitation) use ($filters) {
+            $sendQuery = InvitationSend::query()->where('channel', InvitationChannel::Sms->value)
+                ->where('card_id', $invitation->card_id);
+            if (! empty($filters['campaign']) && $filters['campaign'] !== 'all') {
+                $sendQuery->where('kind', $filters['campaign']);
+            } else {
+                $sendQuery->where('kind', InvitationSendKind::Invitation->value);
+            }
+            $send = $sendQuery->orderByDesc('id')->first();
+            $raw = $send?->status?->value ?? (
+                ($filters['campaign'] ?? 'all') === 'reminder'
+                    ? InvitationState::Pending->value
+                    : ($invitation->status?->value ?? InvitationState::Pending->value)
+            );
+            $smsStatus = match ($raw) {
+                InvitationStatus::Delivered->value => 'delivered',
+                InvitationStatus::Failed->value, InvitationState::Failed->value => 'failed',
+                InvitationStatus::Sent->value, InvitationState::Sent->value => 'sent',
+                default => 'pending',
+            };
+
+            return [
+                'id' => $invitation->id,
+                'guest_id' => $invitation->guest_id,
+                'guest_name' => $invitation->guest?->full_name ?? '—',
+                'phone' => $invitation->phone,
+                'card_number' => $invitation->card?->card_number ?? '—',
+                'card_type' => $invitation->card?->card_type?->value ?? '—',
+                'event_name' => $invitation->event_name,
+                'event_date' => $invitation->event_date?->format('Y-m-d'),
+                'venue' => $invitation->venue,
+                'sms_status' => $smsStatus,
+                'created_at' => $invitation->created_at?->toDateString(),
+            ];
+        });
+
+        if (! empty($filters['status']) && $filters['status'] !== 'all') {
+            $rows = $rows->filter(fn ($row) => $filters['status'] === 'pending'
+                ? in_array($row['sms_status'], ['pending', 'sent'], true)
+                : $row['sms_status'] === $filters['status'])->values();
+        }
+
+        $counts = $rows->countBy('sms_status');
+        return response()->json(['data' => [
+            'filters' => $filters,
+            'events' => $events,
+            'rows' => $rows->values(),
+            'summary' => [
+                'guests' => $rows->pluck('guest_id')->unique()->count(),
+                'cards' => $rows->filter(fn ($row) => $row['card_number'] !== '—')->count(),
+                'sent' => ($counts['sent'] ?? 0) + ($counts['delivered'] ?? 0),
+                'delivered' => $counts['delivered'] ?? 0,
+                'failed' => $counts['failed'] ?? 0,
+                'pending' => ($counts['pending'] ?? 0) + ($counts['sent'] ?? 0),
+            ],
+            'generated_at' => now()->toDateTimeString(),
+            'campaign_reference' => 'INV-RPT-' . now()->format('Ymd') . '-' . str_pad((string) ($rows->first()['id'] ?? 0), 5, '0', STR_PAD_LEFT),
+        ]]);
+    }
+
+    /** Download a generated PDF directly, without opening a browser print dialog. */
+    public function downloadReport(Request $request, InvitationReportPdf $pdf)
+    {
+        $validated = $request->validate(['kind' => ['nullable', 'in:all,delivered,failed,pending']]);
+        $kind = $validated['kind'] ?? 'all';
+        $payload = $this->report($request)->getData(true)['data'];
+        $filename = 'invitation-' . $kind . '-report-' . now()->format('Ymd-His') . '.pdf';
+
+        return response($pdf->generate($payload, $kind), 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+            'Cache-Control' => 'private, no-store, max-age=0',
         ]);
     }
 }

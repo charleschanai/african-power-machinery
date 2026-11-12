@@ -40,6 +40,21 @@ sehemu ya mtumiaji wa `http://`, hivyo kamera hawezi kufunguliwa hata kidogo.
 `app/Http/Middleware/SecurityHeaders.php`). Ikiwa header hiyo ilikuwa
 `camera=()`, kamera ilizofungwa kabisa hata kwenye HTTPS.
 
+### Tunnel ya HTTPS kwa simu (ngrok)
+
+```powershell
+.\scripts\ngrok-ecard.ps1              # anzisha, au onyesha URL ikiwa tayari inaendesha
+.\scripts\ngrok-ecard.ps1 -Action status
+.\scripts\ngrok-ecard.ps1 -Action restart
+.\scripts\ngrok-ecard.ps1 -Action stop
+.\scripts\ngrok-ecard.ps1 -Watch       # ijianzishe upya ikikatika
+```
+
+Fungua URL ya `https://...ngrok-free.dev` kwenye simu. Free plan inaruhusu
+**session moja tu** ya ngrok — kuanzisha ya pili kunaua ya kwanza, ndiyo maana
+script hii haianzishi mara mbili. Launcher nayo inatumia hii:
+`.\scripts\open-ecard.ps1 -Tunnel`. Log iko `%TEMP%\ngrok-ecard.log`.
+
 ---
 
 ## Ufungaji (Setup)

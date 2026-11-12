@@ -7,10 +7,12 @@ use App\Http\Requests\SearchRequest;
 use App\Http\Requests\StoreGuestRequest;
 use App\Http\Requests\UpdateGuestRequest;
 use App\Models\Guest;
+use App\Models\Invitation;
 use App\Services\CardVerificationService;
 use App\Services\SecurityLogger;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class GuestController extends Controller
@@ -147,7 +149,14 @@ class GuestController extends Controller
 
         SecurityLogger::logRequest('guest.destroy', $request, $request->user(), ['guest_id' => $guest->id]);
 
-        $guest->delete();
+        DB::transaction(function () use ($guest) {
+            // Remove invitations first. MySQL can reject the guest's normal
+            // cascading delete when invitations reference both the guest and
+            // cards that are also cascading from that guest. Doing this in the
+            // same transaction preserves the schema's intended delete behavior.
+            Invitation::query()->where('guest_id', $guest->id)->delete();
+            $guest->delete();
+        });
 
         return response()->json([
             'success' => true,

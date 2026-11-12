@@ -144,6 +144,8 @@ Route::prefix('v1')->group(function () {
         Route::get('/invitations', [InvitationController::class, 'index'])->middleware('role:admin');
         Route::get('/invitations/summary', [InvitationController::class, 'summary'])->middleware('role:admin');
         Route::get('/invitations/form-options', [InvitationController::class, 'formOptions'])->middleware('role:admin');
+        Route::get('/invitations/report/download', [InvitationController::class, 'downloadReport'])->middleware('role:admin');
+        Route::get('/invitations/report', [InvitationController::class, 'report'])->middleware('role:admin');
         Route::post('/invitations', [InvitationController::class, 'store'])->middleware('role:admin');
         Route::get('/invitations/{invitation}', [InvitationController::class, 'show'])->middleware('role:admin');
         Route::put('/invitations/{invitation}', [InvitationController::class, 'update'])->middleware('role:admin');

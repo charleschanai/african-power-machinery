@@ -103,8 +103,6 @@
                                     <button
                                         type="button"
                                         class="btn btn-danger px-3! py-1.5! text-xs"
-                                        :disabled="template.cards_count > 0"
-                                        :title="template.cards_count > 0 ? 'Cannot be deleted: it is used by cards.' : ''"
                                         @click="askDelete(template)"
                                     >
                                         <Trash2 class="h-3.5 w-3.5" />
@@ -297,9 +295,13 @@ const emptyForm = () => ({
 
 const form = ref(emptyForm());
 
-const deleteMessage = computed(() =>
-    deleteTarget.value ? `Are you sure you want to delete template "${deleteTarget.value.name}"?` : '',
-);
+const deleteMessage = computed(() => {
+    if (!deleteTarget.value) return '';
+    const linkedCards = Number(deleteTarget.value.cards_count || 0);
+    return linkedCards > 0
+        ? `Delete template "${deleteTarget.value.name}"? Its ${linkedCards} existing card records will remain, but they will be disconnected from this design and will no longer show its front/back artwork. Choose Turn off instead if you want to keep the design available on those cards.`
+        : `Are you sure you want to delete template "${deleteTarget.value.name}"?`;
+});
 
 function openCreate() {
     editing.value = null;
